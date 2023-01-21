@@ -141,7 +141,7 @@ Grid::Grid(const string& filename)
 		grid[i].resize(width, CellState::NONE);
 	}
 
-	auto parse_collection = [&](vector<restrictions>& restrs, uint32_t dimension) {
+	auto parse_restrictions = [&](vector<restrictions>& restrs, uint32_t dimension) {
 		for (uint32_t i = 0; i < dimension; ++i) {
 			getline(file, temp);
 			if (temp == "")
@@ -162,8 +162,8 @@ Grid::Grid(const string& filename)
 		}
 	};
 
-	parse_collection(columns_restrictions, width);
-	parse_collection(rows_restrictions, height);
+	parse_restrictions(columns_restrictions, width);
+	parse_restrictions(rows_restrictions, height);
 }
 
 void Grid::solve()
