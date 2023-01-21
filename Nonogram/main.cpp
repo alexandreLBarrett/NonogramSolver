@@ -14,14 +14,23 @@ using namespace std;
 int main(int argc, char** argv) {
 	vector<string> args { argv, argv + argc };
 
-	_setmode(_fileno(stdout), _O_U8TEXT);
+	if (!_setmode(_fileno(stdout), _O_U8TEXT)) {
+		cout << "UTF8 could not be enabled..." << endl;
+		cout << "The result won't appear in the console" << endl;
+	}
 
 	if (args.size() != 2)
 		cout << "The only argument should be the puzzle name" << endl;
 
 	Grid grid{ args[1] };
-	grid.Solve();
+	grid.solve();
 
-	
-	wcout << L"At the end: " << endl << grid << endl;
+	wcout << grid << endl;
+
+	if (grid.is_solved()) {
+		wcout << L"Solution found!" << endl;
+	}
+	else {
+		wcout << L"More than one solution available." << endl;
+	}
 }

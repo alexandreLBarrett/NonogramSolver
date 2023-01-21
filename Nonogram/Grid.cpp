@@ -6,7 +6,7 @@
 
 bool Grid::validate_mask(const mask& source, const validation_mask& mask) const noexcept
 {
-	for (int i = 0; i < source.size(); ++i) {
+	for (size_t i = 0; i < source.size(); ++i) {
 		if (mask[i] == CellState::ZERO && source[i])
 			return false;
 		if (mask[i] == CellState::ONE && !source[i])
@@ -14,20 +14,6 @@ bool Grid::validate_mask(const mask& source, const validation_mask& mask) const 
 	}
 
 	return true;
-}
-
-Grid::validation_mask Grid::create_mask_for_row(uint8_t row_index) const noexcept
-{
-	return grid[row_index];
-}
-
-Grid::validation_mask Grid::create_mask_for_column(uint8_t col_index) const noexcept
-{
-	validation_mask mask(height);
-	for (uint32_t i = 0; i < height; ++i) {
-		mask[i] = grid[i][col_index];
-	}
-	return mask;
 }
 
 vector<Grid::mask> Grid::generate_mask_permutations(const span<const restrictions::value_type>& subset, size length) const noexcept
@@ -49,23 +35,20 @@ vector<Grid::mask> Grid::generate_mask_permutations(const span<const restriction
 
 		fill(m.begin(), m.end(), false);
 
-		for (int j = 0; j < current_val; ++j) {
-			m[i + j] = true;
-		}
+		auto offset_it = m.begin() + i;
+		fill(offset_it, offset_it + current_val, true);
 
-		if (submasks.empty()) {
+		if (submasks.empty())
 			masks.push_back(m);
-		}
-		else {
-			for_each(
-				submasks.begin(), submasks.end(),
-				[&](auto sub) {
-					auto c = m;
-					copy(sub.begin(), sub.end(), c.begin() + sub_offset);
-					masks.push_back(c);
-				}
-			);
-		}
+
+		transform(
+			submasks.begin(), submasks.end(),
+			back_inserter(masks),
+			[=](const auto& sub) mutable {
+				copy(sub.begin(), sub.end(), m.begin() + sub_offset);
+				return m;
+			}
+		);
 	}
 
 	return masks;
@@ -75,21 +58,44 @@ Grid::probablities Grid::calculate_possibilities_for_line(
 	const restrictions& restrictions, const validation_mask& present_mask, const uint8_t line_size) const noexcept
 {
 	auto perms = generate_mask_permutations(span{ restrictions.begin(), restrictions.end() }, line_size);
-	perms.erase(remove_if(perms.begin(), perms.end(), [&](const auto& val) {
+
+	auto end = remove_if(perms.begin(), perms.end(), [&](const auto& val) {
 		return !validate_mask(val, present_mask);
-	}), perms.end());
+	});
+
+	auto dist = distance(perms.begin(), end);
 	
 	probablities probs(line_size);
-	float increment = 1.0f / perms.size();
+	float increment = 1.0f / dist;
 
-	for (auto perm : perms) {
+	for_each(perms.begin(), end, [&](const auto& perm) {
 		transform(perm.begin(), perm.end(), probs.begin(), probs.begin(), [&](auto a, auto b) {
 			if (a) return b + increment;
 			return b;
 		});
-	}
+	});
 
 	return probs;
+}
+
+template<class MaskFunc>
+void Grid::solve_partial_grid(const vector<restrictions>& restrictions, MaskFunc mask_func, const bool on_column) noexcept
+{
+	for (size_t i = 0; i < restrictions.size(); ++i) {
+		auto line_length = on_column ? height : width;
+		auto probs = calculate_possibilities_for_line(restrictions[i], mask_func(i), line_length);
+
+		for (int j = 0; j < probs.size(); ++j) {
+			if (on_column) {
+				if (grid[j][i] == CellState::NONE)
+					grid[j][i] = toCellState(probs[j]);
+			}
+			else {
+				if (grid[i][j] == CellState::NONE)
+					grid[i][j] = toCellState(probs[j]);
+			}
+		}
+	}
 }
 
 bool Grid::is_solved() const noexcept
@@ -135,73 +141,50 @@ Grid::Grid(const string& filename)
 		grid[i].resize(width, CellState::NONE);
 	}
 
-	for (uint32_t i = 0; i < width; ++i) {
-		getline(file, temp);
-		if (temp == "")
-		{
-			columns_restrictions.emplace_back();
-			continue;
+	auto parse_collection = [&](vector<restrictions>& restrs, uint32_t dimension) {
+		for (uint32_t i = 0; i < dimension; ++i) {
+			getline(file, temp);
+			if (temp == "")
+			{
+				restrs.emplace_back();
+				continue;
+			}
+
+			stringstream ss{ temp };
+
+			vector<uint8_t> column;
+			while (!ss.eof()) {
+				int n;
+				ss >> n;
+				column.push_back(n);
+			}
+			restrs.push_back(column);
 		}
+	};
 
-		stringstream ss{ temp };
-
-		vector<uint8_t> column;
-		while (!ss.eof()) {
-			int n;
-			ss >> n;
-			column.push_back(n);
-		}
-		columns_restrictions.push_back(column);
-	}
-
-	for (uint32_t i = 0; i < height; ++i) {
-		getline(file, temp);
-		if (temp == "")
-		{
-			rows_restrictions.emplace_back();
-			continue;
-		}
-
-		stringstream ss{ temp };
-
-		vector<uint8_t> row;
-		while (!ss.eof()) {
-			int n;
-			ss >> n;
-			row.push_back(n);
-		}
-		rows_restrictions.push_back(row);
-	}
+	parse_collection(columns_restrictions, width);
+	parse_collection(rows_restrictions, height);
 }
 
-void Grid::Solve()
+void Grid::solve()
 {
 	uint32_t empty_slot_count = count_empty_slots();
 	uint32_t prev_empty_slot_count = 0;
 
+	const auto generate_column_mask = [&](size_t j) {
+		validation_mask mask(height);
+		for (uint32_t i = 0; i < height; ++i) {
+			mask[i] = grid[i][j];
+		}
+		return mask;
+	};
+	const auto generate_row_mask = [&](size_t i) { return grid[i]; };
+
 	while (empty_slot_count != prev_empty_slot_count && empty_slot_count != 0) {
 		prev_empty_slot_count = empty_slot_count;
-		for (int i = 0; i < columns_restrictions.size(); ++i) {
-			auto probs = calculate_possibilities_for_line(columns_restrictions[i], create_mask_for_column(i), height);
 
-			for (int j = 0; j < probs.size(); ++j) {
-				if (grid[j][i] == CellState::NONE)
-					grid[j][i] = toCellState(probs[j]);
-			}
-		}
-
-		//wcout << L"After columns: " << endl << *this << endl << endl;
-
-		for (int i = 0; i < rows_restrictions.size(); ++i) {
-			auto probs = calculate_possibilities_for_line(rows_restrictions[i], create_mask_for_row(i), width);
-
-			for (int j = 0; j < probs.size(); ++j) {
-				if (grid[i][j] == CellState::NONE)
-					grid[i][j] = toCellState(probs[j]);
-			}
-		}
-
-		//wcout << L"After rows: " << endl << *this << endl << endl;
+		solve_partial_grid(columns_restrictions, generate_column_mask, true);
+		solve_partial_grid(rows_restrictions, generate_row_mask, false);
 
 		empty_slot_count = count_empty_slots();
 	}

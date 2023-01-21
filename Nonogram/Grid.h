@@ -4,6 +4,7 @@
 #include <vector>
 #include <sstream>
 #include <span>
+#include <functional>
 
 using namespace std;
 
@@ -37,17 +38,20 @@ class Grid
 	}
 
 	bool validate_mask(const mask& source, const validation_mask& mask) const noexcept;
-	validation_mask create_mask_for_row(uint8_t row_index) const noexcept;
-	validation_mask create_mask_for_column(uint8_t column_index) const noexcept;
-	vector<mask> generate_mask_permutations(const span<const restrictions::value_type>& subset, size length)  const noexcept;
+
+	vector<mask> generate_mask_permutations(const span<const restrictions::value_type>& subset, size length) const noexcept;
 	probablities calculate_possibilities_for_line(const restrictions& restriction, const validation_mask& present_mask, const uint8_t line_size) const noexcept;
-	bool is_solved() const noexcept;
+
+	template<class MaskFunc>
+	void solve_partial_grid(const vector<restrictions>& restrictions, MaskFunc mask_func, const bool on_column) noexcept;
+	
 	uint32_t count_empty_slots() const noexcept;
 	wstring to_string(const restrictions& restriction) const noexcept;
 public:
 	Grid(const string& filename);
 
-	void Solve();
+	void solve();
+	bool is_solved() const noexcept;
 
 	friend wostream& operator<<(wostream& o, const Grid& grid) noexcept;
 };
