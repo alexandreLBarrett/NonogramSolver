@@ -33,6 +33,7 @@
     <Text Include="puzzles\heart.txt" />
     <Text Include="puzzles\pirate_ship.txt" />
     <Text Include="puzzles\bike.txt" />
+    <Text Include="puzzles\ying_yang.txt" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Grid.h">
