@@ -136,13 +136,16 @@
   <ItemGroup>
     <Text Include="puzzles\25x25_1.txt" />
     <Text Include="puzzles\bike.txt" />
+    <Text Include="puzzles\dolphin.txt" />
     <Text Include="puzzles\heart.txt" />
     <Text Include="puzzles\hourglass.txt" />
+    <Text Include="puzzles\lapin.txt" />
     <Text Include="puzzles\p1.txt" />
     <Text Include="puzzles\p2.txt" />
     <Text Include="puzzles\p3.txt" />
     <Text Include="puzzles\p4.txt" />
     <Text Include="puzzles\pirate_ship.txt" />
+    <Text Include="puzzles\pteradon.txt" />
     <Text Include="puzzles\umbrella.txt" />
     <Text Include="puzzles\ying_yang.txt" />
   </ItemGroup>

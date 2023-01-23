@@ -34,6 +34,9 @@
     <Text Include="puzzles\pirate_ship.txt" />
     <Text Include="puzzles\bike.txt" />
     <Text Include="puzzles\ying_yang.txt" />
+    <Text Include="puzzles\pteradon.txt" />
+    <Text Include="puzzles\dolphin.txt" />
+    <Text Include="puzzles\lapin.txt" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Grid.h">

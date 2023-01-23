@@ -25,10 +25,13 @@ int main(int argc, char** argv) {
 	Grid grid{ args[1] };
 	grid.solve();
 
+	bool valid = grid.validate();
+
 	wcout << grid << endl;
 
 	if (grid.is_solved()) {
 		wcout << L"Solution found!" << endl;
+		wcout << L"Grid is " << (valid ? L"VALID" : L"INVALID") << endl;
 	}
 	else {
 		wcout << L"More than one solution available." << endl;
